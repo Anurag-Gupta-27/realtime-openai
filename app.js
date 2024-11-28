@@ -46,7 +46,7 @@ app.post('/process-audio', upload.single('audio'), async (req, res) => {
 });
 
 // Start the Node.js server on port 3000
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`Node.js server is running on http://localhost:${PORT}`);
 });
