@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Realtime Console</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script>
+        // Check if API key is already stored
+        if (!localStorage.getItem('apiKey')) {
+            const apiKey = prompt("Please enter your API key:");
+            if (apiKey) {
+                localStorage.setItem('apiKey', apiKey);
+            } else {
+                alert("API key is required to access this page.");
+                window.location.href = '/'; // Redirect to home or another page
+            }
+        }
+    </script>
+</head>
+
+<body>
+    <div class="chat-container">
+        <div class="header-bar">
+            <div class="left-section">
+                <img src="/images/logo.png" alt="Logo" class="logo">
+                <span class="title">realtime console</span>
+            </div>
+            <div class="right-section">
+                <span class="api-label">api key:
+                    <script>const apiKey = localStorage.getItem('apiKey'); document.write(apiKey.length > 3 ? apiKey.substring(0, 3) + '...' : apiKey);</script>
+                </span>
+                <img src="/images/edit.png" alt="edit" class="edit-icon">
+            </div>
+        </div>
+
+        <div class="content-container">
+            <div class="main-section">
+                <div class="events-section">
+                    <span>events</span>
+                    <div class="events-list">
+                        awaiting connection...
+                    </div>
+                </div>
+
+                <div class="conversation-section">
+                    <div class="conversation-heading">conversation</div>
+                    <div class="conversation-list">
+                        awaiting connection...
+                    </div>
+
+                </div>
+                <div class="control-buttons">
+                    <div class="left-controls">
+                        <div class="toggle-buttons">
+                            <button class="btn toggle manual active">manual</button>
+                            <button class="btn toggle vad">vad</button>
+                        </div>
+                    </div>
+                    <button class="btn connect-btn" id="connect-btn">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                        </svg>
+                        connect
+                    </button>
+                    <button class="btn disconnect-btn" style="display: none;" id="disconnect-btn">disconnect
+                        ×</button>
+                </div>
+            </div>
+
+            <div class="side-section">
+                <div id="map-container">
+                    <button class="function-name" id="get-weather">get_weather()</button>
+                    <div class="function-name" id="weather-info">not yet retrieved</div>
+                </div>
+
+                <div class="memory-container">
+                    <button class="function-name">set_memory()</button>
+                    <div class="memory-content">
+                        {}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- websocket connection established -->
+    <!-- <script>
+        const socket = new WebSocket('ws://' + window.location.host + '/');
+
+        socket.onopen = () => {
+            console.log('WebSocket connection established');
+        };
+
+        socket.onerror = (error) => {
+            console.error('WebSocket error:', error);
+        };
+
+        socket.onmessage = (event) => {
+            console.log('Message from server:', event.data);
+        };
+    </script> -->
+
+    <!-- toggle buttons -->
+    <script>
+        document.querySelectorAll('.toggle').forEach(button => {
+            button.addEventListener('click', () => {
+                document.querySelectorAll('.toggle').forEach(btn => {
+                    btn.classList.remove('active');
+                    btn.style.background = '#e0e0e0';
+                    btn.style.color = '#333';
+                });
+                button.classList.add('active');
+                button.style.background = '#000';
+                button.style.color = 'white';
+
+                const vadBtn = document.querySelector('.btn.toggle.vad');
+                const manualBtn = document.querySelector('.btn.toggle.manual');
+                const pushToTalkBtn = document.getElementById('push-to-talk-btn');
+
+                if (vadBtn.classList.contains('active')) {
+                    // Hide "Push to Talk" button when "vad" is active
+                    if (pushToTalkBtn) {
+                        pushToTalkBtn.style.display = 'none';
+                    }
+                } else if (manualBtn.classList.contains('active')) {
+                    // Show "Push to Talk" button when "manual" is active
+                    if (pushToTalkBtn) {
+                        pushToTalkBtn.style.display = 'block';
+                    }
+                }
+            });
+        });
+    </script>
+
+    <!-- map -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const center = [43.7, -79.42]; // Default center coordinates
+
+            // Initialize the map without zoom control
+            const map = L.map('map-container', { zoomControl: false }).setView(center, 11);
+
+            // Add a tile layer
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '© OpenStreetMap'
+            }).addTo(map);
+
+            // Add a marker without a popup
+            const marker = L.marker(center).addTo(map);
+        });
+
+    </script>
+
+    <!-- connect and disconnect -->
+    <script type="module">
+        document.getElementById('connect-btn').addEventListener('click', async function () {
+
+            // Hide the connect button
+            this.style.display = 'none';
+
+            // Show the disconnect button
+            const disconnectBtn = document.getElementById('disconnect-btn');
+            disconnectBtn.style.display = 'block';
+
+            // Replace "awaiting connection..." with dummy data
+            const eventsList = document.querySelector('.events-list');
+            if (eventsList && eventsList.innerText.includes('awaiting connection...')) {
+                eventsList.innerHTML = '<p>Event 1: Connected</p><p>Event 2: Data received</p><p>Event 1: Connected</p><p>Event 2: Data received</p><p>Event 1: Connected</p><p>Event 2: Data received</p><p>Event 1: Connected</p><p>Event 2: Data received</p><p>Event 1: Connected</p><p>Event 2: Data received</p><p>Event 1: Connected</p>';
+            }
+
+            const conversationList = document.querySelector('.conversation-list');
+            if (conversationList && conversationList.innerText.includes('awaiting connection...')) {
+                conversationList.innerHTML = '<p>User: Hello</p><p>Bot: Hi there!</p><p>User: Hello</p>';
+            }
+
+            // Check if the "Manual" button is active
+            const manualBtn = document.querySelector('.btn.toggle.manual');
+            if (manualBtn.classList.contains('active')) {
+                // Create and insert the "Push to Talk" button dynamically
+
+                let mediaRecorder;
+                let audioChunks = [];
+                let recordingStartTime;
+                let pushToTalkBtn = document.getElementById('push-to-talk-btn');
+                if (!pushToTalkBtn) {
+                    pushToTalkBtn = document.createElement('button');
+                    pushToTalkBtn.id = 'push-to-talk-btn';
+                    pushToTalkBtn.className = 'btn push-to-talk-btn';
+                    pushToTalkBtn.innerText = 'push to talk';
+
+                    // Insert the "Push to Talk" button between Connect and Disconnect
+                    disconnectBtn.parentNode.insertBefore(pushToTalkBtn, disconnectBtn);
+                }
+                pushToTalkBtn.style.display = 'block';
+
+                // Mousedown - Start Recording
+                pushToTalkBtn.addEventListener('mousedown', async function(e) {
+                    e.preventDefault(); // Prevent any default behavior
+                    try {
+                        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                        audioChunks = [];
+                        mediaRecorder = new MediaRecorder(stream);
+
+                        mediaRecorder.ondataavailable = event => {
+                            if (event.data.size > 0) {
+                                audioChunks.push(event.data);
+                            }
+                        };
+
+                        mediaRecorder.onstart = () => {
+                            recordingStartTime = Date.now();
+                            console.log('Recording started');
+                            // Change button appearance while recording
+                            this.innerText = 'release to send';
+                            this.style.backgroundColor = 'red';
+                            this.style.color = 'white';
+                        };
+
+                        mediaRecorder.onstop = async () => {
+                            const duration = Date.now() - recordingStartTime;
+                            console.log('Recording duration:', duration, 'ms');
+                            
+                            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                            console.log('Audio blob size:', audioBlob.size);
+
+                            const formData = new FormData();
+                            formData.append('audio', audioBlob, 'recording.webm');
+                            formData.append('duration', duration.toString());
+
+                            try {
+                                const response = await fetch('http://localhost:3000/process-audio', {
+                                    method: 'POST',
+                                    body: formData
+                                });
+
+                                if (response.ok) {
+                                    const data = await response.json();
+                                    console.log('Server response:', data);
+                                    console.log('Recorded duration:', data.duration);
+                                } else {
+                                    console.error('Server error:', await response.text());
+                                }
+                            } catch (error) {
+                                console.error('Error uploading audio:', error);
+                            }
+                        };
+
+                        // Start recording
+                        mediaRecorder.start(100);
+                        
+                    } catch (error) {
+                        console.error('Microphone permission denied or other error:', error);
+                        alert('Microphone access is required to record audio.');
+                    }
+                });
+
+                // Mouseup - Stop Recording
+                pushToTalkBtn.addEventListener('mouseup', function(e) {
+                    e.preventDefault();
+                    if (mediaRecorder && mediaRecorder.state === 'recording') {
+                        mediaRecorder.stop();
+                        mediaRecorder.stream.getTracks().forEach(track => track.stop());
+                        // Reset button appearance
+                        this.innerText = 'push to talk';
+                        this.style.backgroundColor = '';
+                        this.style.color = '';
+                    }
+                });
+
+                // Handle mouse leaving the button while recording
+                pushToTalkBtn.addEventListener('mouseleave', function(e) {
+                    e.preventDefault();
+                    if (mediaRecorder && mediaRecorder.state === 'recording') {
+                        mediaRecorder.stop();
+                        mediaRecorder.stream.getTracks().forEach(track => track.stop());
+                        // Reset button appearance
+                        this.innerText = 'push to talk';
+                        this.style.backgroundColor = '';
+                        this.style.color = '';
+                    }
+                });
+
+                // Add touch events for mobile devices
+                pushToTalkBtn.addEventListener('touchstart', function(e) {
+                    e.preventDefault();
+                    this.dispatchEvent(new MouseEvent('mousedown'));
+                });
+
+                pushToTalkBtn.addEventListener('touchend', function(e) {
+                    e.preventDefault();
+                    this.dispatchEvent(new MouseEvent('mouseup'));
+                });
+            }
+        });
+
+        document.getElementById('disconnect-btn').addEventListener('click', function () {
+            // Hide the disconnect button
+            this.style.display = 'none';
+
+            // Show the connect button
+            document.getElementById('connect-btn').style.display = 'block';
+
+            // Hide the "Push to Talk" button
+            const pushToTalkBtn = document.getElementById('push-to-talk-btn');
+            if (pushToTalkBtn) {
+                pushToTalkBtn.style.display = 'none';
+            }
+
+            // Revert to "awaiting connection..."
+            const eventsList = document.querySelector('.events-list');
+            if (eventsList) {
+                eventsList.innerHTML = '<p>awaiting connection...</p>';
+            }
+
+            const conversationList = document.querySelector('.conversation-list');
+            if (conversationList) {
+                conversationList.innerHTML = '<p>awaiting connection...</p>';
+            }
+        });
+    </script>
+
+    <script>
+        // Get references to the UI elements
+        const editButton = document.querySelector('.edit-icon');
+        const apiKeyLabel = document.querySelector('.api-label');
+
+        // When the "Edit" button is clicked, show the prompt to edit the API key
+        editButton.addEventListener('click', () => {
+            // Fetch the current API key from localStorage
+            const currentApiKey = localStorage.getItem('apiKey') || '';
+
+            // Prompt the user to edit the API key (pre-fill with the current key)
+            const newApiKey = prompt('Enter your API key:', currentApiKey);
+
+            // If the user enters a new API key (non-empty), save it
+            if (newApiKey) {
+                // Save the new API key to localStorage
+                localStorage.setItem('apiKey', newApiKey);
+
+                // Update the UI with the new API key
+                updateApiKeyUI(newApiKey);
+            } else {
+                alert('API Key cannot be empty!');
+            }
+        });
+
+        // Function to update the API key UI
+        function updateApiKeyUI(apiKey) {
+            // Check the length of the API key
+            if (apiKey.length > 3) {
+                apiKeyLabel.innerHTML = `api key: ${apiKey.substring(0, 3)}...`; // Show the first 3 characters with dots
+            } else {
+                apiKeyLabel.innerHTML = `api key: ${apiKey}`; // Show the full API key if it's less than or equal to 3 characters
+            }
+        }
+
+        // On page load, update the UI with the stored API key
+        document.addEventListener('DOMContentLoaded', () => {
+            const apiKey = localStorage.getItem('apiKey');
+            if (apiKey) {
+                updateApiKeyUI(apiKey);
+            } else {
+                apiKeyLabel.innerHTML = 'API Key: Not set';
+            }
+        });
+    </script>
+</body>
+
+</html>

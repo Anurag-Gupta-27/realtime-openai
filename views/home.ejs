@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Voice Chat Demo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .nav-links {
+            margin: 20px 0;
+        }
+        .nav-links a {
+            margin-right: 20px;
+            text-decoration: none;
+            color: blue;
+        }
+    </style>
+</head>
+<body>
+    <h1>Voice Chat Home Page</h1>
+    <script>
+        const socket = new WebSocket('ws://' + window.location.host + '/');
+
+        socket.onopen = () => {
+            console.log('WebSocket connection established');
+        };
+
+        socket.onerror = (error) => {
+            console.error('WebSocket error:', error);
+        };
+
+        socket.onmessage = (event) => {
+            console.log('Message from server:', event.data);
+        };
+    </script>
+    <div class="nav-links">
+        <a href="/voice1">Voice Chat 1</a>
+        <a href="/voice2">Voice Chat 2</a>
+        <a href="/voice3">Voice Chat 3</a>
+    </div>
+</body>
+</html>
